@@ -10,8 +10,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// CORS Configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8080'],
+  origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', 'http://127.0.0.1:5500'],
   credentials: true
 }));
 
@@ -42,7 +44,7 @@ app.get('/api-docs.json', (req, res) => {
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'Hotel Booking API with Keycloak Authentication',
+    message: 'Hotel Booking API with Clerk Authentication',
     version: '2.0.0',
     status: 'Running',
     features: [
@@ -50,16 +52,16 @@ app.get('/', (req, res) => {
       'Simple Monads', 
       'MongoDB', 
       'Functional Programming',
-      'Keycloak Authentication',
+      'Clerk Authentication',
       'Swagger Documentation'
     ],
     endpoints: {
       authentication: {
-        config: '/api/auth/config',
-        user: '/api/auth/user (protected)',
-        verify: '/api/auth/verify (protected)',
-        status: '/api/auth/status (optional)',
-        help: '/api/auth/help'
+        user: 'GET /api/auth/user (protected)',
+        status: 'GET /api/auth/status (optional)',
+        users: 'GET /api/auth/users (protected)',
+        config: 'GET /api/auth/config (public)',
+        help: 'GET /api/auth/help'
       },
       business: {
         hotels: '/api/hotels',
@@ -72,20 +74,21 @@ app.get('/', (req, res) => {
         docsJson: '/api-docs.json'
       }
     },
-    keycloak: {
-      realm: 'hotel-realm',
-      authServer: 'http://localhost:8080',
-      clientId: 'hotel-api'
+    authentication: {
+      provider: 'Clerk',
+      type: 'JWT Bearer Token',
+      frontend: 'Use Clerk components for login/signup',
+      documentation: 'https://clerk.com/docs'
     },
     documentation: {
       swagger: 'http://localhost:3000/api-docs',
       json: 'http://localhost:3000/api-docs.json'
     },
     quickStart: {
-      '1_getToken': 'POST http://localhost:8080/realms/hotel-realm/protocol/openid-connect/token',
-      '2_testAuth': 'GET /api/auth/user with Authorization: Bearer {token}',
-      '3_useAPI': 'Use token with protected endpoints',
-      '4_viewDocs': 'Visit http://localhost:3000/api-docs'
+      '1_setup_frontend': 'Install @clerk/clerk-react or @clerk/clerk-js',
+      '2_add_components': 'Use <SignIn>, <SignUp>, <UserButton>',
+      '3_api_calls': 'Clerk automatically adds auth headers',
+      '4_view_docs': 'Visit http://localhost:3000/api-docs'
     }
   });
 });
@@ -97,7 +100,7 @@ app.get('/health', (req, res) => {
     services: {
       api: 'UP',
       database: 'UP',
-      keycloak: 'UP'
+      clerk: 'UP'
     }
   });
 });
@@ -119,7 +122,7 @@ const startServer = async () => {
     
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
-      console.log('Keycloak authentication enabled');
+      console.log('Clerk authentication enabled');
       console.log(`API info: http://localhost:${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Auth help: http://localhost:${PORT}/api/auth/help`);

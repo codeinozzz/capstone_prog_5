@@ -1,109 +1,123 @@
 import express from 'express';
-import { authenticate, optionalAuth } from '../middleware/authMiddleware.js';
+import { requireAuth, optionalAuth } from '../middleware/clerkMiddleware.js';
+import { clerkClient } from '@clerk/clerk-sdk-node';
 
 export const createAuthRoutes = () => {
   const router = express.Router();
 
-  router.get('/config', (req, res) => {
+  // Get current user info (protected)
+  router.get('/user', requireAuth, (req, res) => {
     res.json({
       success: true,
-      message: 'Keycloak configuration',
       data: {
-        realm: 'hotel-realm',
-        authServerUrl: 'http://localhost:8080',
-        clientId: 'hotel-api',
-        endpoints: {
-          auth: 'http://localhost:8080/realms/hotel-realm/protocol/openid-connect/auth',
-          token: 'http://localhost:8080/realms/hotel-realm/protocol/openid-connect/token',
-          userinfo: 'http://localhost:8080/realms/hotel-realm/protocol/openid-connect/userinfo',
-          logout: 'http://localhost:8080/realms/hotel-realm/protocol/openid-connect/logout'
-        }
+        user: req.user,
+        authenticated: true
       }
     });
   });
 
-  router.get('/user', authenticate, (req, res) => {
-    console.log('Getting user info for:', req.user.username);
-    
-    res.json({
-      success: true,
-      message: 'User authenticated successfully',
-      data: {
-        id: req.user.id,
-        username: req.user.username,
-        email: req.user.email,
-        roles: req.user.roles,
-        authenticated: true,
-        tokenInfo: {
-          issuer: req.user.tokenData.iss,
-          audience: req.user.tokenData.aud,
-          expiresAt: new Date(req.user.tokenData.exp * 1000).toISOString()
-        }
-      }
-    });
-  });
-
-  router.get('/verify', authenticate, (req, res) => {
-    res.json({
-      success: true,
-      message: 'Token is valid',
-      data: {
-        valid: true,
-        username: req.user.username,
-        roles: req.user.roles,
-        expires: new Date(req.user.tokenData.exp * 1000).toISOString()
-      }
-    });
-  });
-
+  // Check auth status (optional)
   router.get('/status', optionalAuth, (req, res) => {
     if (req.user) {
       res.json({
         success: true,
         authenticated: true,
-        message: 'User is authenticated',
         user: {
-          username: req.user.username,
+          id: req.user.id,
           email: req.user.email,
-          roles: req.user.roles
+          firstName: req.user.firstName,
+          lastName: req.user.lastName,
+          username: req.user.username
         }
       });
     } else {
       res.json({
         success: true,
         authenticated: false,
-        message: 'No authentication provided or invalid token'
+        message: 'No authentication provided'
       });
     }
   });
 
+  // Get all users (admin endpoint)
+  router.get('/users', requireAuth, async (req, res) => {
+    try {
+      const users = await clerkClient.users.getUserList();
+      
+      res.json({
+        success: true,
+        data: users.map(user => ({
+          id: user.id,
+          email: user.emailAddresses[0]?.emailAddress,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          createdAt: user.createdAt
+        })),
+        total: users.length
+      });
+    } catch (error) {
+      console.error('Error getting users:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get users'
+      });
+    }
+  });
+
+  // Configuration info
+  router.get('/config', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Clerk authentication configuration',
+      data: {
+        authType: 'clerk',
+        provider: 'Clerk',
+        publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+        endpoints: {
+          user: 'GET /api/auth/user (protected)',
+          status: 'GET /api/auth/status (optional)',
+          users: 'GET /api/auth/users (protected)',
+          config: 'GET /api/auth/config (public)'
+        },
+        frontend: {
+          note: 'Use Clerk frontend components for login/register',
+          components: ['<SignIn />', '<SignUp />', '<UserButton />'],
+          documentation: 'https://clerk.com/docs'
+        }
+      }
+    });
+  });
+
+  // Help information
   router.get('/help', (req, res) => {
     res.json({
       success: true,
-      message: 'Authentication help',
-      howToGetToken: {
-        method: 'POST',
-        url: 'http://localhost:8080/realms/hotel-realm/protocol/openid-connect/token',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: {
-          username: 'test',
-          password: '123',
-          grant_type: 'password',
-          client_id: 'hotel-api'
+      message: 'Clerk authentication help',
+      setup: {
+        backend: 'Already configured with middleware',
+        frontend: {
+          install: 'npm install @clerk/clerk-react (for React) or @clerk/clerk-js (vanilla)',
+          setup: 'Wrap app with ClerkProvider using CLERK_PUBLISHABLE_KEY',
+          components: 'Use <SignIn>, <SignUp>, <UserButton> components'
         }
       },
-      howToUseToken: {
-        header: 'Authorization',
-        value: 'Bearer {your_access_token}'
+      usage: {
+        authentication: 'Clerk handles login/register in frontend automatically',
+        apiCalls: 'Frontend automatically includes auth token in requests',
+        tokenFormat: 'Authorization: Bearer {clerk_token}'
       },
-      testEndpoints: [
-        'GET /api/auth/user (protected)',
-        'GET /api/auth/verify (protected)',
-        'GET /api/auth/status (optional auth)',
-        'GET /api/auth/config (public)'
-      ]
+      examples: {
+        react: {
+          install: 'npm install @clerk/clerk-react',
+          setup: 'ClerkProvider publishableKey={process.env.REACT_APP_CLERK_PUBLISHABLE_KEY}',
+          components: '<SignIn />, <SignUp />, <UserButton />'
+        },
+        apiCall: {
+          note: 'Clerk automatically adds Authorization header',
+          example: 'fetch("/api/hotels") // Token added automatically'
+        }
+      }
     });
   });
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, optionalAuth } from '../middleware/authMiddleware.js';
+import { requireAuth, optionalAuth } from '../middleware/clerkMiddleware.js';
 
 /**
  * @swagger
@@ -11,7 +11,7 @@ import { authenticate, optionalAuth } from '../middleware/authMiddleware.js';
 export const createHotelRoutes = (hotelController) => {
   const router = express.Router();
 
-  console.log('Setting up hotel routes...');
+  console.log('Setting up hotel routes with Clerk auth...');
 
   /**
    * @swagger
@@ -22,17 +22,6 @@ export const createHotelRoutes = (hotelController) => {
    *     responses:
    *       200:
    *         description: List of hotels retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       type: array
-   *                       items:
-   *                         $ref: '#/components/schemas/Hotel'
    */
   router.get('/', optionalAuth, hotelController.getAll);
 
@@ -42,38 +31,6 @@ export const createHotelRoutes = (hotelController) => {
    *   get:
    *     summary: Search hotels
    *     tags: [Hotels]
-   *     parameters:
-   *       - in: query
-   *         name: location
-   *         schema:
-   *           type: string
-   *         description: Filter by location
-   *       - in: query
-   *         name: minRating
-   *         schema:
-   *           type: number
-   *         description: Minimum rating filter
-   *       - in: query
-   *         name: amenity
-   *         schema:
-   *           type: string
-   *         description: Filter by amenity
-   *     responses:
-   *       200:
-   *         description: Hotels found successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       type: array
-   *                       items:
-   *                         $ref: '#/components/schemas/Hotel'
-   *                     filters:
-   *                       type: object
    */
   router.get('/search', optionalAuth, hotelController.search);
 
@@ -83,31 +40,6 @@ export const createHotelRoutes = (hotelController) => {
    *   get:
    *     summary: Get hotel by ID
    *     tags: [Hotels]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Hotel ID
-   *     responses:
-   *       200:
-   *         description: Hotel found successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Hotel'
-   *       404:
-   *         description: Hotel not found
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
    */
   router.get('/:id', optionalAuth, hotelController.getById);
 
@@ -119,60 +51,12 @@ export const createHotelRoutes = (hotelController) => {
    *     tags: [Hotels]
    *     security:
    *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: ['name', 'location', 'description']
-   *             properties:
-   *               name:
-   *                 type: string
-   *                 minLength: 3
-   *               location:
-   *                 type: string
-   *                 minLength: 3
-   *               description:
-   *                 type: string
-   *                 minLength: 10
-   *               rating:
-   *                 type: number
-   *                 minimum: 1
-   *                 maximum: 5
-   *               amenities:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *     responses:
-   *       201:
-   *         description: Hotel created successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Hotel'
-   *       400:
-   *         description: Validation error
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *       401:
-   *         description: Unauthorized
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
+   *     description: Requires Clerk authentication
    */
   router.post('/', 
-    authenticate,
+    requireAuth,
     (req, res, next) => {
-      console.log(`Creating hotel by user: ${req.user.username}`);
+      console.log(`Creating hotel by user: ${req.user.email}`);
       next();
     },
     hotelController.create
@@ -186,72 +70,12 @@ export const createHotelRoutes = (hotelController) => {
    *     tags: [Hotels]
    *     security:
    *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Hotel ID
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               name:
-   *                 type: string
-   *                 minLength: 3
-   *               location:
-   *                 type: string
-   *                 minLength: 3
-   *               description:
-   *                 type: string
-   *                 minLength: 10
-   *               rating:
-   *                 type: number
-   *                 minimum: 1
-   *                 maximum: 5
-   *               amenities:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *     responses:
-   *       200:
-   *         description: Hotel updated successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Hotel'
-   *       400:
-   *         description: Validation error
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *       401:
-   *         description: Unauthorized
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *       404:
-   *         description: Hotel not found
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
+   *     description: Requires Clerk authentication
    */
   router.put('/:id', 
-    authenticate,
+    requireAuth,
     (req, res, next) => {
-      console.log(`Updating hotel ${req.params.id} by user: ${req.user.username}`);
+      console.log(`Updating hotel ${req.params.id} by user: ${req.user.email}`);
       next();
     },
     hotelController.update
@@ -265,42 +89,12 @@ export const createHotelRoutes = (hotelController) => {
    *     tags: [Hotels]
    *     security:
    *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Hotel ID
-   *     responses:
-   *       200:
-   *         description: Hotel deleted successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Hotel'
-   *       401:
-   *         description: Unauthorized
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *       404:
-   *         description: Hotel not found
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
+   *     description: Requires Clerk authentication
    */
   router.delete('/:id', 
-    authenticate,
+    requireAuth,
     (req, res, next) => {
-      console.log(`Deleting hotel ${req.params.id} by user: ${req.user.username}`);
+      console.log(`Deleting hotel ${req.params.id} by user: ${req.user.email}`);
       next();
     },
     hotelController.delete

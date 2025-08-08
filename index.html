@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hotel API - Clerk Authentication Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+      }
+      button {
+        margin: 5px;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      textarea {
+        width: 100%;
+        height: 120px;
+        margin: 10px 0;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .auth-section {
+        background: #f5f5f5;
+      }
+      #user-info {
+        background: #e8f5e8;
+        padding: 10px;
+        margin: 10px 0;
+      }
+    </style>
+    <!-- Clerk Frontend SDK -->
+    <script
+      crossorigin="anonymous"
+      data-clerk-publishable-key="pk_test_cG9saXNoZWQtc2hhZC0zMC5jbGVyay5hY2NvdW50cy5kZXYk"
+      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+      onload="window.Clerk.load()"
+    ></script>
+  </head>
+  <body>
+    <h1>Hotel Booking API - Clerk Authentication Test</h1>
+
+    <div class="section auth-section">
+      <h3>Authentication Status</h3>
+      <div id="auth-status">Loading...</div>
+      <div id="user-info" style="display: none"></div>
+      <button onclick="signIn()">Sign In</button>
+      <button onclick="signUp()">Sign Up</button>
+      <button onclick="signOut()">Sign Out</button>
+    </div>
+
+    <div class="section">
+      <h3>API Test - Check Auth Status</h3>
+      <button onclick="checkAuthStatus()">Check Auth Status</button>
+      <button onclick="getUserInfo()">Get User Info</button>
+      <div id="authResult"></div>
+    </div>
+
+    <div class="section">
+      <h3>API Test - Hotels</h3>
+      <button onclick="getHotels()">Get Hotels (Public)</button>
+      <button onclick="createHotel()">Create Hotel (Protected)</button>
+      <div id="hotelResult"></div>
+    </div>
+
+    <div class="section">
+      <h3>API Response:</h3>
+      <textarea id="response" readonly></textarea>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:3000/api";
+      let currentUser = null;
+
+      // Initialize Clerk
+      window.addEventListener("load", async () => {
+        await window.Clerk.load();
+
+        // Listen for auth state changes
+        window.Clerk.addListener(({ user }) => {
+          currentUser = user;
+          updateAuthStatus();
+        });
+
+        updateAuthStatus();
+      });
+
+      function updateAuthStatus() {
+        const authStatus = document.getElementById("auth-status");
+        const userInfo = document.getElementById("user-info");
+
+        if (currentUser) {
+          authStatus.innerHTML = `<span class="success">✓ Signed in as ${currentUser.emailAddresses[0].emailAddress}</span>`;
+          userInfo.innerHTML = `
+                    <strong>User Info:</strong><br>
+                    ID: ${currentUser.id}<br>
+                    Email: ${currentUser.emailAddresses[0].emailAddress}<br>
+                    Name: ${currentUser.firstName} ${currentUser.lastName}
+                `;
+          userInfo.style.display = "block";
+        } else {
+          authStatus.innerHTML = `<span class="error">✗ Not signed in</span>`;
+          userInfo.style.display = "none";
+        }
+      }
+
+      async function signIn() {
+        await window.Clerk.openSignIn({});
+      }
+
+      async function signUp() {
+        await window.Clerk.openSignUp({});
+      }
+
+      async function signOut() {
+        await window.Clerk.signOut();
+      }
+
+      // Helper function for API calls
+      async function apiCall(endpoint, options = {}) {
+        try {
+          const headers = {
+            "Content-Type": "application/json",
+            ...options.headers,
+          };
+
+          // Add Clerk token if user is signed in
+          if (currentUser) {
+            const token = await window.Clerk.session.getToken();
+            headers.Authorization = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            headers,
+            ...options,
+          });
+
+          const data = await response.json();
+          document.getElementById("response").value = JSON.stringify(
+            data,
+            null,
+            2
+          );
+          return { response, data };
+        } catch (error) {
+          document.getElementById("response").value = `Error: ${error.message}`;
+          return { error };
+        }
+      }
+
+      async function checkAuthStatus() {
+        const result = await apiCall("/auth/status");
+
+        const resultDiv = document.getElementById("authResult");
+        if (result.data?.authenticated) {
+          resultDiv.innerHTML = `<span class="success">✓ API recognizes user: ${result.data.user.email}</span>`;
+        } else {
+          resultDiv.innerHTML = `<span class="error">✗ API shows not authenticated</span>`;
+        }
+      }
+
+      async function getUserInfo() {
+        const result = await apiCall("/auth/user");
+
+        const resultDiv = document.getElementById("authResult");
+        if (result.data?.success) {
+          resultDiv.innerHTML = `<span class="success">✓ User info retrieved: ${result.data.data.user.email}</span>`;
+        } else {
+          resultDiv.innerHTML = `<span class="error">✗ ${
+            result.data?.error || "Failed to get user info"
+          }</span>`;
+        }
+      }
+
+      async function getHotels() {
+        const result = await apiCall("/hotels");
+
+        const resultDiv = document.getElementById("hotelResult");
+        if (result.data?.success) {
+          resultDiv.innerHTML = `<span class="success">✓ Found ${result.data.total} hotels</span>`;
+        } else {
+          resultDiv.innerHTML = `<span class="error">✗ Failed to get hotels</span>`;
+        }
+      }
+
+      async function createHotel() {
+        if (!currentUser) {
+          document.getElementById(
+            "hotelResult"
+          ).innerHTML = `<span class="error">✗ Please sign in first</span>`;
+          return;
+        }
+
+        const result = await apiCall("/hotels", {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Test Hotel " + Date.now(),
+            location: "Test City",
+            description:
+              "A beautiful test hotel created with Clerk authentication",
+            rating: 4.5,
+            amenities: ["WiFi", "Pool", "Gym"],
+          }),
+        });
+
+        const resultDiv = document.getElementById("hotelResult");
+        if (result.data?.success) {
+          resultDiv.innerHTML = `<span class="success">✓ Hotel created successfully!</span>`;
+        } else {
+          resultDiv.innerHTML = `<span class="error">✗ ${
+            result.data?.error || "Failed to create hotel"
+          }</span>`;
+        }
+      }
+    </script>
+  </body>
+</html>
