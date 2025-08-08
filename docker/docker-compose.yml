@@ -1,0 +1,63 @@
+services:
+  mongodb:
+    image: mongo:latest
+
+    container_name: jala_agency_mongodb
+
+    restart: unless-stopped
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+
+    ports:
+      - "${MONGO_PORT}:27017"
+
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+    command:
+      - --auth
+      - --bind_ip_all
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mongo-express:
+    image: mongo-express:latest
+
+    container_name: jala_agency_mongo_express
+
+    restart: unless-stopped
+
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_ROOT_USER}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD}
+
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: true
+      ME_CONFIG_MONGODB_AUTH_DATABASE: admin
+
+    ports:
+      - "8081:8081"
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+
+volumes:
+  mongodb_data:
+    driver: local
