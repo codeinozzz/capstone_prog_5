@@ -1,15 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import { connectDatabase } from './infrastructure/database/connection.js';
-import { MongoHotelRepository } from './infrastructure/database/mongodb/repositories/MongoHotelRepository.js';
-import { MongoRoomRepository } from './infrastructure/database/mongodb/repositories/MongoRoomRepository.js';
-import { createHotelController } from './infrastructure/web/controllers/hotelController.js';
-import { createRoomController } from './infrastructure/web/controllers/roomController.js';
-import { createHotelRoutes } from './infrastructure/web/routes/hotelRoutes.js';
-import { createRoomRoutes } from './infrastructure/web/routes/roomRoutes.js';
-import { createAuthRoutes } from './infrastructure/web/routes/authRoutes.js';
+import { DependencyFactory } from './infrastructure/factories/DependencyFactory.js';
 import { validateRequest } from './infrastructure/web/middleware/validator.js';
 import { globalErrorHandler } from './infrastructure/web/middleware/errorHandler.js';
+import { specs, swaggerUi } from './infrastructure/docs/swagger.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,21 +25,20 @@ app.use((req, res, next) => {
 
 app.use(validateRequest);
 
-const hotelRepository = new MongoHotelRepository();
-const roomRepository = new MongoRoomRepository();
+const factory = new DependencyFactory();
+const { routes } = factory.createAll();
 
-// Controllers
-const hotelController = createHotelController(hotelRepository);
-const roomController = createRoomController(roomRepository, hotelRepository);
-
-// Routes setup
 console.log('Setting up routes...');
 
-// Authentication routes
-app.use('/api/auth', createAuthRoutes());
+app.use('/api/auth', routes.auth);
+app.use('/api/hotels', routes.hotels);
+app.use('/api/rooms', routes.rooms);
 
-app.use('/api/hotels', createHotelRoutes(hotelController));
-app.use('/api/rooms', createRoomRoutes(roomController));
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+app.get('/api-docs.json', (req, res) => {
+  res.json(specs);
+});
 
 app.get('/', (req, res) => {
   res.json({
@@ -56,7 +50,8 @@ app.get('/', (req, res) => {
       'Simple Monads', 
       'MongoDB', 
       'Functional Programming',
-      'Keycloak Authentication'
+      'Keycloak Authentication',
+      'Swagger Documentation'
     ],
     endpoints: {
       authentication: {
@@ -72,7 +67,9 @@ app.get('/', (req, res) => {
       },
       system: {
         health: '/health',
-        info: '/'
+        info: '/',
+        docs: '/api-docs',
+        docsJson: '/api-docs.json'
       }
     },
     keycloak: {
@@ -80,15 +77,19 @@ app.get('/', (req, res) => {
       authServer: 'http://localhost:8080',
       clientId: 'hotel-api'
     },
+    documentation: {
+      swagger: 'http://localhost:3000/api-docs',
+      json: 'http://localhost:3000/api-docs.json'
+    },
     quickStart: {
       '1_getToken': 'POST http://localhost:8080/realms/hotel-realm/protocol/openid-connect/token',
       '2_testAuth': 'GET /api/auth/user with Authorization: Bearer {token}',
-      '3_useAPI': 'Use token with protected endpoints'
+      '3_useAPI': 'Use token with protected endpoints',
+      '4_viewDocs': 'Visit http://localhost:3000/api-docs'
     }
   });
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'UP',

@@ -1,37 +1,15 @@
 import { HotelRepository } from '../../../../domain/ports/HotelRepository.js';
+import { BaseMongoRepository } from './BaseMongoRepository.js';
 import { HotelModel } from '../models/HotelModel.js';
 import { Hotel } from '../../../../domain/entities/Hotel.js';
 
-export class MongoHotelRepository extends HotelRepository {
-  
-  async create(hotel) {
-    const doc = new HotelModel(hotel);
-    const saved = await doc.save();
-    return this.toEntity(saved);
-  }
-
-  async findById(id) {
-    const doc = await HotelModel.findById(id);
-    return doc ? this.toEntity(doc) : null;
-  }
-
-  async findAll() {
-    const docs = await HotelModel.find();
-    return docs.map(doc => this.toEntity(doc));
-  }
-
-  async update(id, updateData) {
-    const doc = await HotelModel.findByIdAndUpdate(id, updateData, { new: true });
-    return doc ? this.toEntity(doc) : null;
-  }
-
-  async delete(id) {
-    const doc = await HotelModel.findByIdAndDelete(id);
-    return doc ? this.toEntity(doc) : null;
+export class MongoHotelRepository extends BaseMongoRepository {
+  constructor() {
+    super(HotelModel, Hotel);
   }
 
   async findByLocation(location) {
-    const docs = await HotelModel.find({
+    const docs = await this.model.find({
       location: { $regex: location, $options: 'i' }
     });
     return docs.map(doc => this.toEntity(doc));
@@ -40,7 +18,6 @@ export class MongoHotelRepository extends HotelRepository {
   async searchHotels(filters) {
     const query = {};
 
-    // Build query object
     if (filters.location) {
       query.location = { $regex: filters.location, $options: 'i' };
     }
@@ -53,12 +30,10 @@ export class MongoHotelRepository extends HotelRepository {
       query.amenities = filters.amenity;
     }
 
-    const docs = await HotelModel.find(query);
+    const docs = await this.model.find(query);
     
-    // Use map to convert and filter if needed
     let hotels = docs.map(doc => this.toEntity(doc));
     
-    // Additional filtering with JavaScript filter
     if (filters.minRating) {
       hotels = hotels.filter(hotel => hotel.rating >= parseFloat(filters.minRating));
     }
@@ -66,7 +41,6 @@ export class MongoHotelRepository extends HotelRepository {
     return hotels;
   }
 
-  // Simple converter
   toEntity(doc) {
     return new Hotel({
       id: doc._id.toString(),
