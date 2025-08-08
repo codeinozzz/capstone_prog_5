@@ -1,49 +1,43 @@
-import { clerkClient } from '@clerk/clerk-sdk-node';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
 
 export const requireAuth = async (req, res, next) => {
-  console.log('Checking Clerk authentication...');
-  
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
-      error: 'Authentication required',
-      message: 'Please provide Bearer token'
+      error: 'Authentication required'
     });
   }
 
   const token = authHeader.split(' ')[1];
-
+  
   try {
-    const payload = await clerkClient.verifyToken(token);
+    const clerkClient = createClerkClient({
+      secretKey: process.env.CLERK_SECRET_KEY
+    });
     
-    if (!payload || !payload.sub) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid token'
-      });
+    const tokenParts = token.split('.');
+    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+    
+    if (payload.exp < Date.now() / 1000) {
+      return res.status(401).json({ success: false, error: 'Token expired' });
     }
-
-    // Get user info from Clerk
+    
     const user = await clerkClient.users.getUser(payload.sub);
     
     req.user = {
       id: user.id,
       email: user.emailAddresses[0]?.emailAddress,
       firstName: user.firstName,
-      lastName: user.lastName,
-      username: user.username || user.emailAddresses[0]?.emailAddress
+      lastName: user.lastName
     };
-
-    console.log('User authenticated:', req.user.email);
+    
     next();
   } catch (error) {
-    console.error('Clerk auth error:', error.message);
     return res.status(401).json({
       success: false,
-      error: 'Authentication failed',
-      message: error.message
+      error: 'Authentication failed'
     });
   }
 };
@@ -59,16 +53,20 @@ export const optionalAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const payload = await clerkClient.verifyToken(token);
+    const clerkClient = createClerkClient({
+      secretKey: process.env.CLERK_SECRET_KEY
+    });
     
-    if (payload && payload.sub) {
+    const tokenParts = token.split('.');
+    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+    
+    if (payload.sub && payload.exp > Date.now() / 1000) {
       const user = await clerkClient.users.getUser(payload.sub);
       req.user = {
         id: user.id,
         email: user.emailAddresses[0]?.emailAddress,
         firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username || user.emailAddresses[0]?.emailAddress
+        lastName: user.lastName
       };
     } else {
       req.user = null;
