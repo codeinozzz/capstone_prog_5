@@ -36,6 +36,9 @@ export class MongoRoomRepository extends BaseMongoRepository {
 
     let docs = await this.model.find(query).populate('hotelId');
     
+    // FILTRAR documentos con hotelId null ANTES de mapear
+    docs = docs.filter(doc => doc.hotelId !== null);
+    
     let rooms = docs.map(doc => {
       const room = this.toEntity(doc);
       if (doc.hotelId && typeof doc.hotelId === 'object') {
@@ -73,7 +76,9 @@ export class MongoRoomRepository extends BaseMongoRepository {
   toEntity(doc) {
     return new Room({
       id: doc._id.toString(),
-      hotelId: doc.hotelId.toString(),
+      hotelId: doc.hotelId && typeof doc.hotelId === 'object' 
+        ? doc.hotelId._id.toString() 
+        : doc.hotelId ? doc.hotelId.toString() : null,
       type: doc.type,
       capacity: doc.capacity,
       beds: doc.beds,
