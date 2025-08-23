@@ -92,13 +92,8 @@ app.get('/', (req, res) => {
     documentation: {
       swagger: 'http://localhost:3000/api-docs',
       json: 'http://localhost:3000/api-docs.json'
-    },
-    quickStart: {
-      '1_setup_frontend': 'Install @clerk/clerk-react or @clerk/clerk-js',
-      '2_add_components': 'Use <SignIn>, <SignUp>, <UserButton>',
-      '3_api_calls': 'Clerk automatically adds auth headers',
-      '4_view_docs': 'Visit http://localhost:3000/api-docs'
     }
+ 
   });
 });
 

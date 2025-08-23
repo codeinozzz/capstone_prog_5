@@ -1,3 +1,4 @@
+
 import mongoose from 'mongoose';
 
 const isValidObjectId = (id) => {
@@ -9,22 +10,18 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
-const isValidPhone = (phone) => {
-  const phoneRegex = /^[0-9+\-\s()]+$/;
-  return phoneRegex.test(phone) && phone.length >= 8;
-};
-
 export const validateBookingData = (req, res, next) => {
   if (req.method !== 'POST') {
     return next();
   }
 
-  const { firstName, lastName, phone, email, hotelId } = req.body;
+  const { firstName, lastName, phone, email, hotelId, checkInDate, checkOutDate } = req.body;
 
+  // VALIDACIONES BÁSICAS
   if (!firstName || firstName.trim().length < 2) {
     return res.status(400).json({
       success: false,
-      message: 'Name must be at least 2 characters'
+      message: 'First name must be at least 2 characters'
     });
   }
 
@@ -35,17 +32,17 @@ export const validateBookingData = (req, res, next) => {
     });
   }
 
-  if (!phone || !isValidPhone(phone)) {
+  if (!phone) {
     return res.status(400).json({
       success: false,
-      message: 'Phone number must be valid'
+      message: 'Phone is required'
     });
   }
 
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({
       success: false,
-      message: 'Email must be valid'
+      message: 'Valid email is required'
     });
   }
 
@@ -56,13 +53,22 @@ export const validateBookingData = (req, res, next) => {
     });
   }
 
-  if (req.body.roomId && !isValidObjectId(req.body.roomId)) {
+  // VALIDACIONES DE FECHAS BÁSICAS
+  if (!checkInDate) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid room ID'
+      message: 'Check-in date is required'
     });
   }
 
+  if (!checkOutDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'Check-out date is required'
+    });
+  }
+
+  // LIMPIAR DATOS
   req.body.firstName = firstName.trim();
   req.body.lastName = lastName.trim();
   req.body.phone = phone.trim();

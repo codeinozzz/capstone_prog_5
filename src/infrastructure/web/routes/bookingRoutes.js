@@ -1,130 +1,54 @@
-// src/infrastructure/web/routes/bookingRoutes.js
 import express from 'express';
 import { requireAuth, optionalAuth } from '../middleware/clerkMiddleware.js';
-import { validateBookingData } from '../middleware/bookingValidator.js';
-
-/**
- * @swagger
- * tags:
- *   name: Bookings
- *   description: Booking management endpoints
- */
 
 export const createBookingRoutes = (bookingController) => {
   const router = express.Router();
 
-  console.log('Setting up booking routes...');
-
-  /**
-   * @swagger
-   * /api/bookings:
-   *   post:
-   *     summary: Create new booking
-   *     tags: [Bookings]
-   *     description: Create a new hotel room booking
-   */
+  // Crear reserva - permitir sin auth pero capturar usuario si existe
   router.post('/', 
-    validateBookingData, // Validar datos primero
-    optionalAuth, // Permitir reservas sin autenticación pero loguear si hay usuario
-    (req, res, next) => {
-      if (req.user) {
-        console.log(`Creating booking by authenticated user: ${req.user.email}`);
-      } else {
-        console.log('Creating booking by guest user');
-      }
-      next();
-    },
+    optionalAuth,
     bookingController.create
   );
 
-  /**
-   * @swagger
-   * /api/bookings:
-   *   get:
-   *     summary: Get all bookings
-   *     tags: [Bookings]
-   *     security:
-   *       - bearerAuth: []
-   *     description: Requires authentication
-   */
+  // Mis reservas - requiere auth
+  router.get('/my', 
+    requireAuth,
+    bookingController.getMyBookings
+  );
+
+  // Todas las reservas - requiere auth (admin)
   router.get('/', 
     requireAuth,
-    (req, res, next) => {
-      console.log(`Getting all bookings by user: ${req.user.email}`);
-      next();
-    },
     bookingController.getAll
   );
 
-  /**
-   * @swagger
-   * /api/bookings/search:
-   *   get:
-   *     summary: Search bookings by email
-   *     tags: [Bookings]
-   */
+  // Buscar por email
   router.get('/search', 
     optionalAuth,
     bookingController.getByEmail
   );
 
-  /**
-   * @swagger
-   * /api/bookings/confirmation/{confirmationNumber}:
-   *   get:
-   *     summary: Get booking by confirmation number
-   *     tags: [Bookings]
-   */
+  // Buscar por número de confirmación
   router.get('/confirmation/:confirmationNumber', 
     optionalAuth,
     bookingController.getByConfirmationNumber
   );
 
-  /**
-   * @swagger
-   * /api/bookings/hotel/{hotelId}:
-   *   get:
-   *     summary: Get bookings by hotel
-   *     tags: [Bookings]
-   *     security:
-   *       - bearerAuth: []
-   */
+  // Reservas por hotel
   router.get('/hotel/:hotelId', 
     requireAuth,
-    (req, res, next) => {
-      console.log(`Getting bookings for hotel ${req.params.hotelId} by user: ${req.user.email}`);
-      next();
-    },
     bookingController.getByHotel
   );
 
-  /**
-   * @swagger
-   * /api/bookings/{id}:
-   *   get:
-   *     summary: Get booking by ID
-   *     tags: [Bookings]
-   */
+  // Reserva por ID
   router.get('/:id', 
     optionalAuth,
     bookingController.getById
   );
 
-  /**
-   * @swagger
-   * /api/bookings/{id}/cancel:
-   *   put:
-   *     summary: Cancel booking
-   *     tags: [Bookings]
-   *     security:
-   *       - bearerAuth: []
-   */
+  // Cancelar reserva
   router.put('/:id/cancel', 
     requireAuth,
-    (req, res, next) => {
-      console.log(`Cancelling booking ${req.params.id} by user: ${req.user.email}`);
-      next();
-    },
     bookingController.cancel
   );
 

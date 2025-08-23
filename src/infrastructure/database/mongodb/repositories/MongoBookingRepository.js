@@ -22,6 +22,12 @@ export class MongoBookingRepository extends BaseMongoRepository {
     return docs.map(doc => this.toEntity(doc));
   }
 
+  // NUEVO MÉTODO SIMPLE
+  async findByUserId(userId) {
+    const docs = await this.model.find({ userId }).populate('hotelId').sort({ createdAt: -1 });
+    return docs.map(doc => this.toEntity(doc));
+  }
+
   async generateConfirmationNumber() {
     let confirmationNumber;
     let exists = true;
@@ -35,7 +41,6 @@ export class MongoBookingRepository extends BaseMongoRepository {
       
       confirmationNumber = `HOTEL-${year}${month}${day}-${random}`;
       
-      // Verificar si ya existe
       const existing = await this.model.findOne({ confirmationNumber });
       exists = !!existing;
     }
@@ -65,6 +70,11 @@ export class MongoBookingRepository extends BaseMongoRepository {
         ? doc.hotelId._id.toString() 
         : doc.hotelId ? doc.hotelId.toString() : null,
       roomId: doc.roomId ? doc.roomId.toString() : null,
+      // NUEVOS CAMPOS SIMPLES
+      checkInDate: doc.checkInDate,
+      checkOutDate: doc.checkOutDate,
+      userId: doc.userId,
+      // CAMPOS EXISTENTES
       confirmationNumber: doc.confirmationNumber,
       status: doc.status,
       createdAt: doc.createdAt,

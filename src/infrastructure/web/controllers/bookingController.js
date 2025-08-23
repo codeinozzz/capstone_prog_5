@@ -3,7 +3,13 @@ import * as bookingUseCases from '../../../application/usecases/bookingUseCases.
 export const createBookingController = (bookingRepository, hotelRepository) => ({
   
   async create(req, res) {
-    const result = await bookingUseCases.createBooking(req.body, bookingRepository, hotelRepository);
+    // SIMPLE: Solo agregar userId si existe
+    const bookingData = {
+      ...req.body,
+      userId: req.user?.id || null
+    };
+
+    const result = await bookingUseCases.createBooking(bookingData, bookingRepository, hotelRepository);
     
     result
       .onSuccess(booking => {
@@ -30,6 +36,33 @@ export const createBookingController = (bookingRepository, hotelRepository) => (
 
   async getAll(req, res) {
     const result = await bookingUseCases.getAllBookings(bookingRepository);
+    
+    result
+      .onSuccess(bookings => {
+        res.json({
+          success: true,
+          data: bookings,
+          total: bookings.length
+        });
+      })
+      .onError(errorMsg => {
+        res.status(500).json({
+          success: false,
+          message: errorMsg
+        });
+      });
+  },
+
+  // NUEVO SIMPLE - Mis reservas
+  async getMyBookings(req, res) {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    const result = await bookingUseCases.getBookingsByUserId(req.user.id, bookingRepository);
     
     result
       .onSuccess(bookings => {

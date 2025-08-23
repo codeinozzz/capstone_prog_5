@@ -4,14 +4,12 @@ const bookingSchema = new mongoose.Schema({
   firstName: {
     type: String,
     required: true,
-    trim: true,
-    minlength: 2
+    trim: true
   },
   lastName: {
     type: String,
     required: true,
-    trim: true,
-    minlength: 2
+    trim: true
   },
   phone: {
     type: String,
@@ -34,6 +32,20 @@ const bookingSchema = new mongoose.Schema({
     ref: 'Room',
     required: false
   },
+  // NUEVOS CAMPOS SIMPLES
+  checkInDate: {
+    type: Date,
+    required: true
+  },
+  checkOutDate: {
+    type: Date,
+    required: true
+  },
+  userId: {
+    type: String,
+    required: false
+  },
+  // CAMPOS EXISTENTES
   confirmationNumber: {
     type: String,
     required: true,
@@ -41,15 +53,15 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled'],
+    enum: ['confirmed', 'cancelled'],
     default: 'confirmed'
   }
 }, {
   timestamps: true
 });
 
+// ÍNDICES BÁSICOS SOLAMENTE
 bookingSchema.index({ email: 1 });
 bookingSchema.index({ confirmationNumber: 1 });
-bookingSchema.index({ hotelId: 1 });
 
 export const BookingModel = mongoose.model('Booking', bookingSchema);

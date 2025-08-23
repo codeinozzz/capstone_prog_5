@@ -11,22 +11,14 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
-const isValidPhone = (phone) => {
-  const phoneRegex = /^[0-9+\-\s()]+$/;
-  return phoneRegex.test(phone) && phone.length >= 8;
-};
-
 export const createBooking = async (bookingData, bookingRepository, hotelRepository) => {
+  // VALIDACIONES BÁSICAS
   if (!bookingData.firstName || bookingData.firstName.length < 2) {
     return Either.error('Name must be at least 2 characters');
   }
 
   if (!bookingData.lastName || bookingData.lastName.length < 2) {
     return Either.error('Last name must be at least 2 characters');
-  }
-
-  if (!bookingData.phone || !isValidPhone(bookingData.phone)) {
-    return Either.error('Phone number must be valid');
   }
 
   if (!bookingData.email || !isValidEmail(bookingData.email)) {
@@ -37,13 +29,26 @@ export const createBooking = async (bookingData, bookingRepository, hotelReposit
     return Either.error('Valid hotel ID is required');
   }
 
+  // VALIDACIONES DE FECHAS BÁSICAS
+  if (!bookingData.checkInDate) {
+    return Either.error('Check-in date is required');
+  }
+
+  if (!bookingData.checkOutDate) {
+    return Either.error('Check-out date is required');
+  }
+
+  const checkInDate = new Date(bookingData.checkInDate);
+  const checkOutDate = new Date(bookingData.checkOutDate);
+
+  if (checkOutDate <= checkInDate) {
+    return Either.error('Check-out date must be after check-in date');
+  }
+
+  // Verificar que el hotel existe
   const hotel = await hotelRepository.findById(bookingData.hotelId);
   if (!hotel) {
     return Either.error('Hotel not found');
-  }
-
-  if (bookingData.roomId && !isValidObjectId(bookingData.roomId)) {
-    return Either.error('Invalid room ID');
   }
 
   try {
@@ -54,6 +59,9 @@ export const createBooking = async (bookingData, bookingRepository, hotelReposit
       email: bookingData.email.trim().toLowerCase(),
       hotelId: bookingData.hotelId,
       roomId: bookingData.roomId || null,
+      checkInDate: checkInDate,
+      checkOutDate: checkOutDate,
+      userId: bookingData.userId || null,
       status: 'confirmed'
     });
 
@@ -100,6 +108,16 @@ export const getBookingsByEmail = async (email, bookingRepository) => {
   }
 
   const bookings = await bookingRepository.findByEmail(email.toLowerCase());
+  return Either.success(bookings);
+};
+
+// NUEVO - Obtener reservas por usuario
+export const getBookingsByUserId = async (userId, bookingRepository) => {
+  if (!userId) {
+    return Either.error('User ID is required');
+  }
+
+  const bookings = await bookingRepository.findByUserId(userId);
   return Either.success(bookings);
 };
 

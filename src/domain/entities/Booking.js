@@ -7,6 +7,11 @@ export class Booking {
     this.email = data.email;
     this.hotelId = data.hotelId;
     this.roomId = data.roomId;
+    // NUEVOS CAMPOS BÁSICOS
+    this.checkInDate = data.checkInDate ? new Date(data.checkInDate) : null;
+    this.checkOutDate = data.checkOutDate ? new Date(data.checkOutDate) : null;
+    this.userId = data.userId || null; // Para Clerk
+    // CAMPOS EXISTENTES
     this.confirmationNumber = data.confirmationNumber;
     this.status = data.status || 'confirmed';
     this.createdAt = data.createdAt || new Date();
