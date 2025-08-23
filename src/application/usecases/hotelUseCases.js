@@ -2,13 +2,11 @@ import { Hotel } from '../../domain/entities/Hotel.js';
 import { Either } from '../../shared/utils/Either.js';
 import mongoose from 'mongoose';
 
-// Función helper para validar ObjectId
 const isValidObjectId = (id) => {
   return id && mongoose.Types.ObjectId.isValid(id);
 };
 
 export const createHotel = async (hotelData, hotelRepository) => {
-  // Validate data
   if (!hotelData.name || hotelData.name.length < 3) {
     return Either.error('Hotel name must be at least 3 characters');
   }
@@ -77,7 +75,6 @@ export const updateHotel = async (id, updateData, hotelRepository) => {
 };
 
 export const deleteHotel = async (id, hotelRepository) => {
-  // Validate ID - CAMBIADO: ahora valida ObjectId
   if (!id || !isValidObjectId(id)) {
     return Either.error('Valid hotel ID is required');
   }

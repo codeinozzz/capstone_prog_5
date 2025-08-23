@@ -15,7 +15,13 @@ dotenv.config();
 
 // CORS Configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', 'http://127.0.0.1:5500'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:8080', 
+    'http://localhost:5173', 
+    'http://localhost:4200',  
+    'http://127.0.0.1:5500'
+  ],
   credentials: true
 }));
 
@@ -37,6 +43,7 @@ console.log('Setting up routes...');
 app.use('/api/auth', routes.auth);
 app.use('/api/hotels', routes.hotels);
 app.use('/api/rooms', routes.rooms);
+app.use('/api/bookings', routes.bookings);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
