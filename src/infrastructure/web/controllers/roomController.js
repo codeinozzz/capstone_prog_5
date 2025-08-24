@@ -1,3 +1,4 @@
+// src/infrastructure/web/controllers/roomController.js
 import * as roomUseCases from '../../../application/usecases/roomUseCases.js';
 
 export const createRoomController = (roomRepository, hotelRepository) => ({
@@ -72,6 +73,43 @@ export const createRoomController = (roomRepository, hotelRepository) => ({
       })
       .onError(errorMsg => {
         res.status(404).json({
+          success: false,
+          error: errorMsg
+        });
+      });
+  },
+
+  // NUEVO: Obtener habitaciones disponibles por fechas
+  async getAvailableRooms(req, res) {
+    const { hotelId, checkIn, checkOut } = req.query;
+    
+    if (!hotelId || !checkIn || !checkOut) {
+      return res.status(400).json({
+        success: false,
+        error: 'hotelId, checkIn, and checkOut are required'
+      });
+    }
+
+    const result = await roomUseCases.getAvailableRooms(
+      hotelId, 
+      checkIn, 
+      checkOut, 
+      roomRepository, 
+      hotelRepository
+    );
+    
+    result
+      .onSuccess(rooms => {
+        res.json({
+          success: true,
+          message: `Found ${rooms.length} available room(s) for ${checkIn} to ${checkOut}`,
+          data: rooms,
+          total: rooms.length,
+          filters: { hotelId, checkIn, checkOut }
+        });
+      })
+      .onError(errorMsg => {
+        res.status(400).json({
           success: false,
           error: errorMsg
         });

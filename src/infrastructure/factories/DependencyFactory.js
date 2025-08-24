@@ -1,3 +1,4 @@
+// src/infrastructure/factories/DependencyFactory.js - ACTUALIZADO
 import { MongoHotelRepository } from '../database/mongodb/repositories/MongoHotelRepository.js';
 import { MongoRoomRepository } from '../database/mongodb/repositories/MongoRoomRepository.js';
 import { MongoBookingRepository } from '../database/mongodb/repositories/MongoBookingRepository.js';
@@ -34,7 +35,8 @@ export class DependencyFactory {
       this.controllers = {
         hotel: createHotelController(repositories.hotel),
         room: createRoomController(repositories.room, repositories.hotel),
-        booking: createBookingController(repositories.booking, repositories.hotel)
+        // ACTUALIZADO: Booking controller ahora recibe roomRepository también
+        booking: createBookingController(repositories.booking, repositories.hotel, repositories.room)
       };
     }
     return this.controllers;

@@ -1,3 +1,4 @@
+// src/application/usecases/roomUseCases.js
 import { Room } from '../../domain/entities/Room.js';
 import { Either } from '../../shared/utils/Either.js';
 import mongoose from 'mongoose';
@@ -33,7 +34,6 @@ export const createRoom = async (roomData, roomRepository, hotelRepository) => {
 };
 
 export const getRoomById = async (id, roomRepository) => {
-  // Validate ID - cambiado para ObjectId
   if (!id || !isValidObjectId(id)) {
     return Either.error('Valid room ID is required');
   }
@@ -53,12 +53,10 @@ export const getAllRooms = async (roomRepository) => {
 };
 
 export const getRoomsByHotel = async (hotelId, roomRepository, hotelRepository) => {
-  // Validate hotel ID - cambiado para ObjectId
   if (!hotelId || !isValidObjectId(hotelId)) {
     return Either.error('Invalid hotel ID');
   }
   
-  // Check if hotel exists
   const hotel = await hotelRepository.findById(hotelId);
   if (!hotel) {
     return Either.error('Hotel not found');
@@ -68,18 +66,54 @@ export const getRoomsByHotel = async (hotelId, roomRepository, hotelRepository) 
   return Either.success(rooms);
 };
 
+// NUEVO: Obtener habitaciones disponibles por fechas
+export const getAvailableRooms = async (hotelId, checkIn, checkOut, roomRepository, hotelRepository) => {
+  // Validaciones básicas
+  if (!hotelId || !isValidObjectId(hotelId)) {
+    return Either.error('Valid hotel ID is required');
+  }
+
+  if (!checkIn || !checkOut) {
+    return Either.error('Check-in and check-out dates are required');
+  }
+
+  // Validar fechas
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+
+  if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+    return Either.error('Invalid date format');
+  }
+
+  if (checkOutDate <= checkInDate) {
+    return Either.error('Check-out date must be after check-in date');
+  }
+
+  // Verificar que el hotel existe
+  const hotel = await hotelRepository.findById(hotelId);
+  if (!hotel) {
+    return Either.error('Hotel not found');
+  }
+
+  try {
+    // Obtener habitaciones disponibles (lógica en repository)
+    const availableRooms = await roomRepository.findAvailableRooms(hotelId, checkInDate, checkOutDate);
+    return Either.success(availableRooms);
+  } catch (error) {
+    console.error('Error getting available rooms:', error);
+    return Either.error('Error checking room availability');
+  }
+};
+
 export const updateRoom = async (id, updateData, roomRepository) => {
-  // Validate ID - cambiado para ObjectId
   if (!id || !isValidObjectId(id)) {
     return Either.error('Valid room ID is required');
   }
   
-  // Validate type if provided
   if (updateData.type && !VALID_ROOM_TYPES.includes(updateData.type)) {
     return Either.error(`Room type must be one of: ${VALID_ROOM_TYPES.join(', ')}`);
   }
   
-  // Validate capacity if provided
   if (updateData.capacity && (updateData.capacity < 1 || updateData.capacity > 4)) {
     return Either.error('Capacity must be between 1 and 4');
   }
@@ -94,7 +128,6 @@ export const updateRoom = async (id, updateData, roomRepository) => {
 };
 
 export const deleteRoom = async (id, roomRepository) => {
-  // Validate ID - cambiado para ObjectId
   if (!id || !isValidObjectId(id)) {
     return Either.error('Valid room ID is required');
   }
@@ -109,7 +142,6 @@ export const deleteRoom = async (id, roomRepository) => {
 };
 
 export const searchRooms = async (filters, roomRepository) => {
-  // Basic validation
   if (filters.numberOfPeople && (isNaN(filters.numberOfPeople) || filters.numberOfPeople <= 0)) {
     return Either.error('Number of people must be greater than 0');
   }

@@ -1,3 +1,4 @@
+// src/application/usecases/bookingUseCases.js - ACTUALIZADO PARA HABITACIONES
 import { Booking } from '../../domain/entities/Booking.js';
 import { Either } from '../../shared/utils/Either.js';
 import mongoose from 'mongoose';
@@ -11,7 +12,7 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
-export const createBooking = async (bookingData, bookingRepository, hotelRepository) => {
+export const createBooking = async (bookingData, bookingRepository, hotelRepository, roomRepository) => {
   // VALIDACIONES BÁSICAS
   if (!bookingData.firstName || bookingData.firstName.length < 2) {
     return Either.error('Name must be at least 2 characters');
@@ -25,11 +26,12 @@ export const createBooking = async (bookingData, bookingRepository, hotelReposit
     return Either.error('Email must be valid');
   }
 
-  if (!bookingData.hotelId || !isValidObjectId(bookingData.hotelId)) {
-    return Either.error('Valid hotel ID is required');
+  // CAMBIADO: Ahora requiere roomId obligatorio
+  if (!bookingData.roomId || !isValidObjectId(bookingData.roomId)) {
+    return Either.error('Valid room ID is required');
   }
 
-  // VALIDACIONES DE FECHAS BÁSICAS
+  // VALIDACIONES DE FECHAS
   if (!bookingData.checkInDate) {
     return Either.error('Check-in date is required');
   }
@@ -45,20 +47,38 @@ export const createBooking = async (bookingData, bookingRepository, hotelReposit
     return Either.error('Check-out date must be after check-in date');
   }
 
-  // Verificar que el hotel existe
-  const hotel = await hotelRepository.findById(bookingData.hotelId);
-  if (!hotel) {
-    return Either.error('Hotel not found');
-  }
-
   try {
+    // NUEVO: Obtener habitación para extraer hotelId
+    const room = await roomRepository.findById(bookingData.roomId);
+    if (!room) {
+      return Either.error('Room not found');
+    }
+
+    // NUEVO: Verificar que el hotel de la habitación existe
+    const hotel = await hotelRepository.findById(room.hotelId);
+    if (!hotel) {
+      return Either.error('Hotel not found');
+    }
+
+    // NUEVO: Verificar disponibilidad de la habitación para esas fechas
+    const isRoomAvailable = await bookingRepository.isRoomAvailable(
+      bookingData.roomId, 
+      checkInDate, 
+      checkOutDate
+    );
+
+    if (!isRoomAvailable) {
+      return Either.error('Room is not available for the selected dates');
+    }
+
+    // Crear reserva con hotelId extraído de la habitación
     const booking = new Booking({
       firstName: bookingData.firstName.trim(),
       lastName: bookingData.lastName.trim(),
       phone: bookingData.phone.trim(),
       email: bookingData.email.trim().toLowerCase(),
-      hotelId: bookingData.hotelId,
-      roomId: bookingData.roomId || null,
+      hotelId: room.hotelId, // EXTRAÍDO de la habitación
+      roomId: bookingData.roomId,
       checkInDate: checkInDate,
       checkOutDate: checkOutDate,
       userId: bookingData.userId || null,
@@ -111,7 +131,6 @@ export const getBookingsByEmail = async (email, bookingRepository) => {
   return Either.success(bookings);
 };
 
-// NUEVO - Obtener reservas por usuario
 export const getBookingsByUserId = async (userId, bookingRepository) => {
   if (!userId) {
     return Either.error('User ID is required');
@@ -153,6 +172,15 @@ export const cancelBooking = async (id, bookingRepository) => {
 
   if (booking.status === 'cancelled') {
     return Either.error('Booking is already cancelled');
+  }
+
+  // NUEVO: Validar política de cancelación (3 días antes)
+  const now = new Date();
+  const checkInDate = new Date(booking.checkInDate);
+  const daysDiff = Math.ceil((checkInDate - now) / (1000 * 60 * 60 * 24));
+
+  if (daysDiff < 3) {
+    return Either.error('Bookings can only be cancelled 3 or more days before check-in date');
   }
 
   const updatedBooking = await bookingRepository.update(id, { 

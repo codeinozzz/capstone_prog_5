@@ -1,3 +1,4 @@
+// src/infrastructure/database/mongodb/repositories/MongoBookingRepository.js - ACTUALIZADO
 import { BaseMongoRepository } from './BaseMongoRepository.js';
 import { BookingModel } from '../models/BookingModel.js';
 import { Booking } from '../../../../domain/entities/Booking.js';
@@ -22,10 +23,43 @@ export class MongoBookingRepository extends BaseMongoRepository {
     return docs.map(doc => this.toEntity(doc));
   }
 
-  // NUEVO MÉTODO SIMPLE
   async findByUserId(userId) {
     const docs = await this.model.find({ userId }).populate('hotelId').sort({ createdAt: -1 });
     return docs.map(doc => this.toEntity(doc));
+  }
+
+  // NUEVO: Verificar si una habitación está disponible para fechas específicas
+  async isRoomAvailable(roomId, checkInDate, checkOutDate) {
+    try {
+      const conflictingBooking = await this.model.findOne({
+        roomId: roomId,
+        status: 'confirmed',
+        // Lógica de solapamiento: hay conflicto si:
+        // checkInDate < existente.checkOutDate AND checkOutDate > existente.checkInDate
+        $or: [
+          {
+            checkInDate: { $lt: checkOutDate },
+            checkOutDate: { $gt: checkInDate }
+          }
+        ]
+      });
+
+      // Si no hay reservas conflictivas, la habitación está disponible
+      const isAvailable = !conflictingBooking;
+      
+      console.log(`Room ${roomId} availability check:`, {
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        available: isAvailable,
+        conflictingBooking: conflictingBooking ? conflictingBooking.confirmationNumber : null
+      });
+
+      return isAvailable;
+
+    } catch (error) {
+      console.error('Error checking room availability:', error);
+      throw new Error('Database error checking room availability');
+    }
   }
 
   async generateConfirmationNumber() {
@@ -70,11 +104,9 @@ export class MongoBookingRepository extends BaseMongoRepository {
         ? doc.hotelId._id.toString() 
         : doc.hotelId ? doc.hotelId.toString() : null,
       roomId: doc.roomId ? doc.roomId.toString() : null,
-      // NUEVOS CAMPOS SIMPLES
       checkInDate: doc.checkInDate,
       checkOutDate: doc.checkOutDate,
       userId: doc.userId,
-      // CAMPOS EXISTENTES
       confirmationNumber: doc.confirmationNumber,
       status: doc.status,
       createdAt: doc.createdAt,

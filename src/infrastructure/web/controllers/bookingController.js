@@ -1,6 +1,7 @@
+// src/infrastructure/web/controllers/bookingController.js - ACTUALIZADO
 import * as bookingUseCases from '../../../application/usecases/bookingUseCases.js';
 
-export const createBookingController = (bookingRepository, hotelRepository) => ({
+export const createBookingController = (bookingRepository, hotelRepository, roomRepository) => ({
   
   async create(req, res) {
     // SIMPLE: Solo agregar userId si existe
@@ -9,7 +10,13 @@ export const createBookingController = (bookingRepository, hotelRepository) => (
       userId: req.user?.id || null
     };
 
-    const result = await bookingUseCases.createBooking(bookingData, bookingRepository, hotelRepository);
+    // ACTUALIZADO: Ahora usa roomRepository también
+    const result = await bookingUseCases.createBooking(
+      bookingData, 
+      bookingRepository, 
+      hotelRepository, 
+      roomRepository
+    );
     
     result
       .onSuccess(booking => {
@@ -22,7 +29,10 @@ export const createBookingController = (bookingRepository, hotelRepository) => (
             firstName: booking.firstName,
             lastName: booking.lastName,
             email: booking.email,
-            hotel: booking.hotel
+            hotel: booking.hotel,
+            roomId: booking.roomId,
+            checkInDate: booking.checkInDate,
+            checkOutDate: booking.checkOutDate
           }
         });
       })
@@ -53,7 +63,6 @@ export const createBookingController = (bookingRepository, hotelRepository) => (
       });
   },
 
-  // NUEVO SIMPLE - Mis reservas
   async getMyBookings(req, res) {
     if (!req.user?.id) {
       return res.status(401).json({

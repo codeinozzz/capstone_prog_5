@@ -12,4 +12,14 @@ export class BookingRepository extends BaseRepository {
   async findByHotel(hotelId) {
     throw new Error('findByHotel method not implemented');
   }
+
+  // NUEVO: Método para verificar si una habitación está disponible
+  async isRoomAvailable(roomId, checkInDate, checkOutDate) {
+    throw new Error('isRoomAvailable method not implemented');
+  }
+
+  // NUEVO: Método para encontrar reservas por usuario
+  async findByUserId(userId) {
+    throw new Error('findByUserId method not implemented');
+  }
 }
